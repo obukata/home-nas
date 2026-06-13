@@ -140,3 +140,4 @@
 | 2026-04-25 | DNS の特定ドメインだけ繋がらない問題の切り分け手順を `docs/operations.md` §8-A に追加 (AGH 上流 DNS の Cloudflare 1.1.1.1 追加対応含む) |
 | 2026-05-11 | バックアップ運用の重大バグを 2 件修正: ① `mysqldump` → `mariadb-dump` (MariaDB 11.x で `mysqldump` 廃止対応)、② rsync の `--exclude='shares/backups/'` が anchor 不足で機能せず、バックアップが自身を再帰コピーして HDD を 100% まで埋め尽くす事故が発生。`--exclude='/backups/'` に修正、`docs/09-backup.md` のトラブルシュート節と本 README 双方に再発防止メモを追記 |
 | 2026-06-13 | Immich 導入。Docker Compose で immich-server / immich-machine-learning / immich_redis / immich_postgres を追加。写真データを HDD (`<HDD_ROOT>/appdata/immich/`)、DB を SSD (`/srv/appdata/immich-db/`) に配置。NPM で `immich.home.lan` → port 2283 に転送 (LAN 内のみ)。手順は `docs/12-immich.md` |
+| 2026-06-13 | SSH (Termius / macOS) 接続時に日本語が入力・表示できない問題に対処。クライアントが送る不正な `LC_CTYPE=UTF-8` を `~/.bashrc` / `~/.inputrc` で UTF-8 ロケールに上書き。手順とトラブルシュートを `docs/operations.md` §9 に追加 |

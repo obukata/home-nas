@@ -11,6 +11,7 @@
 - [7. 定期メンテナンス](#7-定期メンテナンス)
 - [8. トラブル対応の基本フロー](#8-トラブル対応の基本フロー)
   - [8-A. 特定サイトだけ繋がらない時の切り分け](#8-a-特定サイトだけ繋がらない時の切り分け)
+- [9. SSH 接続で日本語が入力・表示できない (ロケール)](#9-ssh-接続で日本語が入力表示できないロケール)
 
 ---
 
@@ -367,6 +368,57 @@ dig <対象ドメイン> @<OMV_IP>
 Chrome: `chrome://net-internals/#dns` → **Clear host cache** / `chrome://net-internals/#sockets` → **Flush socket pools**
 
 Safari: 開発メニュー → キャッシュを空にする
+
+---
+
+## 9. SSH 接続で日本語が入力・表示できない (ロケール)
+
+### 症状
+
+Android の Termius (や macOS のターミナル) で SSH 接続したとき、日本語の入力・表示ができない。シェル起動時や `sudo -i` 時に次の警告が出る:
+
+```
+setlocale: LC_CTYPE: cannot change locale (UTF-8): No such file or directory
+locale: Cannot set LC_CTYPE to default locale: No such file or directory
+```
+
+### 原因
+
+SSH クライアント (Termius / macOS など) が `LC_CTYPE=UTF-8` という **不完全な値** を送ってくる。Linux では `en_US.UTF-8` / `ja_JP.UTF-8` のようにフルネームでないとロケールを解決できず、ASCII (C ロケール) にフォールバックしてマルチバイト文字が壊れる。サーバ側の `sshd` が `AcceptEnv LC_*` でこの値を受け入れているため伝播する。
+
+サーバには必要なロケール (`en_US.utf8` / `ja_JP.utf8`) は生成済みなので、**渡ってくる不正値を上書きすれば直る**。
+
+### 対処 (2026-06-13 実施)
+
+各ユーザーの dotfiles で上書きする (sshd_config を触らずユーザー側で完結):
+
+- `~/.bashrc` のインタラクティブ判定 (`case $- in ... esac`) の直後に追記:
+  ```bash
+  export LANG=en_US.UTF-8
+  export LC_CTYPE=en_US.UTF-8
+  unset LC_ALL
+  ```
+- `~/.inputrc` を作成し、readline のマルチバイト入力を有効化:
+  ```
+  $include /etc/inputrc
+  set meta-flag on
+  set input-meta on
+  set convert-meta off
+  set output-meta on
+  ```
+
+### 反映時の注意 (tmux)
+
+`~/.bashrc` は SSH 接続時に自動で tmux `main` セッションへ attach する。**既存の `main` セッションは古いロケールのまま起動済み**なので、再接続して attach しただけでは直らない。`tmux kill-server` でセッションを破棄してから再接続し、新しい環境で `main` を作り直す (または対象シェルで `source ~/.bashrc`)。
+
+### 確認
+
+```bash
+locale | grep CTYPE   # LC_CTYPE=en_US.UTF-8 になっていれば OK (以前は LC_CTYPE=UTF-8)
+locale charmap        # UTF-8 と出れば OK
+```
+
+> Note: 非インタラクティブシェル (スクリプト実行や Claude Code の Bash ツールなど) は `~/.bashrc` を読まないため、そこでは `LC_CTYPE=UTF-8` のままに見えることがある。インタラクティブな対話操作には影響しない。恒久的に全シェルで直すなら `/etc/ssh/sshd_config` の `AcceptEnv` から `LC_*` を外す手もあるが、root 権限が必要なので未実施。
 
 ---
 
