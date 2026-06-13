@@ -22,9 +22,10 @@
 | OS | OpenMediaVault (OMV) 8 | Debian 13 ベース |
 | ファイル共有・同期 | Nextcloud | Docker コンテナで運用。夫婦 2 アカウントで共有フォルダを構成 |
 | コンテナ基盤 | Docker + docker compose | omv-extras の compose プラグイン経由 |
-| VPN | WireGuard (OMV 側) | Mac mini 上で稼働。ルータで UDP 51820 のみ開放 |
-| LAN 内 DNS | AdGuard Home | `*.home.lan` を Mac mini に向ける。広告ブロックも兼ねる |
-| リバースプロキシ | Nginx Proxy Manager | Nextcloud を https 化 (LAN 内 DNS + 自己署名) |
+| VPN | WireGuard (Docker, `linuxserver/wireguard`) | Mac mini 上で稼働。ルータで UDP 51820 のみ開放。クライアント側は AGH を DNS として参照 (PEERDNS) |
+| DDNS | DuckDNS | グローバル IP が動的なため、`/srv/appdata/duckdns/duck.sh` を `/etc/cron.d/duckdns` で 5 分おきに更新 |
+| LAN 内 DNS | AdGuard Home (Docker) | `*.home.lan` を Mac mini に向ける。広告ブロックも兼ねる。ホスト OS の :53 と競合させないため `systemd-resolved` の `DNSStubListener=no` を設定済 |
+| リバースプロキシ | Nginx Proxy Manager (Docker) | Nextcloud を https 化 (LAN 内 DNS + 自己署名)。OMV 管理画面は :80 から :8181 に退避済 |
 | (将来) SMB/CIFS | 未使用 | 必要になれば後付け可能。`docs/03-shared-folders-smb.md` 参照 |
 
 ## 要件
@@ -62,9 +63,8 @@
 
 ### 現時点
 
-- **SSD (121GB)**: OS / Docker / 各コンテナ設定 (MariaDB, Redis, NPM, WireGuard) / Nextcloud の PHP 本体
-- **HDD (1TB)**: Nextcloud の全ユーザーデータ、バックアップ宛先
-- バックアップは HDD 上の `<HDD_ROOT>/shares/backups/`
+- **SSD (121GB)** = `/dev/sdb` (`/` にマウント): OS / Docker / 各コンテナ設定 (MariaDB, Redis, NPM, WireGuard, AGH, DuckDNS) / Nextcloud の PHP 本体。compose は `/srv/compose/<svc>/`、各コンテナの永続データは `/srv/appdata/<svc>/`
+- **HDD (1TB)** = `/dev/sda1` (`/srv/dev-disk-by-uuid-3a9a7624-afbb-4993-a1dd-38e2bd1546f5/` にマウント、以後 `<HDD_ROOT>`): Nextcloud の全ユーザーデータ (`<HDD_ROOT>/appdata/nextcloud/data/`)、バックアップ宛先 (`<HDD_ROOT>/shares/backups/`)
 - **SSD 側データはクロスドライブ保護**される (SSD → HDD にバックアップされるため、SSD 故障で完全消失しない)
 - **HDD 側のユーザーデータは同一ドライブ内バックアップ** (HDD 故障で両方失う)。誤削除・ランサムウェア対策としての位置付け
 
@@ -77,10 +77,11 @@
 
 ## バックアップ方針
 
-- Nextcloud データディレクトリおよび設定ファイル、DB (mysqldump)、compose 一式を rsync で定期コピー
+- Nextcloud データディレクトリおよび設定ファイル、DB (`mariadb-dump`)、compose 一式を `/usr/local/sbin/homenas-backup.sh` (rsync) で定期コピー
 - 当面の宛先は HDD 内 (`<HDD_ROOT>/shares/backups/`)、将来は外付けへ移行
-- `--link-dest` によるハードリンク世代管理で日次スナップショットを取得
-- 頻度: 日次 (cron で 03:00 等)、詳細は [docs/09-backup.md](docs/09-backup.md) 参照
+- `--link-dest` によるハードリンク世代管理で日次スナップショットを取得 (世代保持: 14 日)
+- 頻度: 日次 03:00 (`/etc/cron.d/homenas-backup`)。ログ: `/var/log/homenas-backup.log`
+- 詳細は [docs/09-backup.md](docs/09-backup.md) 参照
 
 ## セキュリティ方針
 
@@ -117,6 +118,9 @@
 ## 未決事項
 
 - 外付けストレージの追加時期と具体的な機種・容量
+- **外部公開方式の方針転換**: 現状は VPN (WireGuard) 経由のみだが、「VPN OFF で家でも外でも同じ FQDN で繋がる」運用に移行するか検討中。候補は Cloudflare Tunnel (推奨) または古典的ポート開放 (Let's Encrypt)
+- **AFFiNE (Notion 風セルフホストツール) 本採用判断**: 試用中。常用するなら `docs/12-affine.md` として手順化予定
+- バックアップの自動通知 (失敗時に Slack / メール) と日次ヘルスチェックのスクリプト化
 
 ## 変更履歴
 
@@ -127,3 +131,8 @@
 | 2026-04-19 | 実機のストレージが Fusion Drive 由来の SSD 121GB + HDD 1TB 構成と判明。OS/DB を SSD、ユーザーデータを HDD に分ける構成へ変更 |
 | 2026-04-19 | ファイル共有を SMB + Nextcloud の併用から Nextcloud 単独に変更 (夫婦 2 人運用の整理)。SMB は将来必要になった場合の後付けに位置付け |
 | 2026-04-19 | 自宅ルータ (光BBユニット E-WMTA2.3) に DNS 機能がないため、LAN 内 DNS を AdGuard Home (Docker) で立てる構成に変更。手順を §6 として追加し、以降の章を繰り下げ |
+| 2026-04-24 | Mac mini 上で OMV 8 / Nextcloud / NPM / AGH / WireGuard / DuckDNS の構築完了。日次バックアップ (cron 03:00) 稼働開始 |
+| 2026-04-24 | WireGuard 章 (§8) に DuckDNS (DDNS) 手順を追加。グローバル IP 変動への追従を確実化。`crontab -e` は OMV の Salt 管理と競合するため `/etc/cron.d/duckdns` 方式に変更 |
+| 2026-04-25 | クライアント側の DNS バイパス無効化手順を `docs/operations.md` §4 に追加 (Android プライベート DNS / Chrome セキュア DNS が AGH を素通りする問題への対処) |
+| 2026-04-25 | DNS の特定ドメインだけ繋がらない問題の切り分け手順を `docs/operations.md` §8-A に追加 (AGH 上流 DNS の Cloudflare 1.1.1.1 追加対応含む) |
+| 2026-05-11 | バックアップ運用の重大バグを 2 件修正: ① `mysqldump` → `mariadb-dump` (MariaDB 11.x で `mysqldump` 廃止対応)、② rsync の `--exclude='shares/backups/'` が anchor 不足で機能せず、バックアップが自身を再帰コピーして HDD を 100% まで埋め尽くす事故が発生。`--exclude='/backups/'` に修正、`docs/09-backup.md` のトラブルシュート節と本 README 双方に再発防止メモを追記 |
