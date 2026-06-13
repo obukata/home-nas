@@ -21,6 +21,7 @@
 |---|---|---|
 | OS | OpenMediaVault (OMV) 8 | Debian 13 ベース |
 | ファイル共有・同期 | Nextcloud | Docker コンテナで運用。夫婦 2 アカウントで共有フォルダを構成 |
+| 写真・動画管理 | Immich | Docker コンテナで運用。スマートフォン自動バックアップ・顔認識・AI 検索。LAN 内のみ公開 (`immich.home.lan`) |
 | コンテナ基盤 | Docker + docker compose | omv-extras の compose プラグイン経由 |
 | VPN | WireGuard (Docker, `linuxserver/wireguard`) | Mac mini 上で稼働。ルータで UDP 51820 のみ開放。クライアント側は AGH を DNS として参照 (PEERDNS) |
 | DDNS | DuckDNS | グローバル IP が動的なため、`/srv/appdata/duckdns/duck.sh` を `/etc/cron.d/duckdns` で 5 分おきに更新 |
@@ -67,6 +68,7 @@
 - **HDD (1TB)** = `/dev/sda1` (`/srv/dev-disk-by-uuid-3a9a7624-afbb-4993-a1dd-38e2bd1546f5/` にマウント、以後 `<HDD_ROOT>`): Nextcloud の全ユーザーデータ (`<HDD_ROOT>/appdata/nextcloud/data/`)、バックアップ宛先 (`<HDD_ROOT>/shares/backups/`)
 - **SSD 側データはクロスドライブ保護**される (SSD → HDD にバックアップされるため、SSD 故障で完全消失しない)
 - **HDD 側のユーザーデータは同一ドライブ内バックアップ** (HDD 故障で両方失う)。誤削除・ランサムウェア対策としての位置付け
+- **Immich データ (HDD)** = `<HDD_ROOT>/appdata/immich/` (写真・動画アップロード)、**Immich DB (SSD)** = `/srv/appdata/immich-db/`
 
 ### 将来の拡張方針
 
@@ -77,7 +79,7 @@
 
 ## バックアップ方針
 
-- Nextcloud データディレクトリおよび設定ファイル、DB (`mariadb-dump`)、compose 一式を `/usr/local/sbin/homenas-backup.sh` (rsync) で定期コピー
+- Nextcloud データディレクトリおよび設定ファイル、DB (`mariadb-dump`)、Immich DB (`pg_dump`)、compose 一式を `/usr/local/sbin/homenas-backup.sh` (rsync) で定期コピー
 - 当面の宛先は HDD 内 (`<HDD_ROOT>/shares/backups/`)、将来は外付けへ移行
 - `--link-dest` によるハードリンク世代管理で日次スナップショットを取得 (世代保持: 14 日)
 - 頻度: 日次 03:00 (`/etc/cron.d/homenas-backup`)。ログ: `/var/log/homenas-backup.log`
@@ -106,6 +108,7 @@
 9. [バックアップ設定](docs/09-backup.md)
 10. [各クライアントからの接続確認](docs/10-verification.md)
 11. (オプション) [n8n で家庭用自動化ハブを立てる](docs/11-n8n.md)
+12. [Immich の導入 (写真・動画管理)](docs/12-immich.md)
 
 構築完了後の定常運用 (端末追加・アカウント追加・障害対応など) は [docs/operations.md](docs/operations.md) にまとめてある。
 
@@ -119,7 +122,7 @@
 
 - 外付けストレージの追加時期と具体的な機種・容量
 - **外部公開方式の方針転換**: 現状は VPN (WireGuard) 経由のみだが、「VPN OFF で家でも外でも同じ FQDN で繋がる」運用に移行するか検討中。候補は Cloudflare Tunnel (推奨) または古典的ポート開放 (Let's Encrypt)
-- **AFFiNE (Notion 風セルフホストツール) 本採用判断**: 試用中。常用するなら `docs/12-affine.md` として手順化予定
+- **AFFiNE (Notion 風セルフホストツール) 本採用判断**: 試用中。常用するなら `docs/13-affine.md` として手順化予定
 - バックアップの自動通知 (失敗時に Slack / メール) と日次ヘルスチェックのスクリプト化
 
 ## 変更履歴
@@ -136,3 +139,4 @@
 | 2026-04-25 | クライアント側の DNS バイパス無効化手順を `docs/operations.md` §4 に追加 (Android プライベート DNS / Chrome セキュア DNS が AGH を素通りする問題への対処) |
 | 2026-04-25 | DNS の特定ドメインだけ繋がらない問題の切り分け手順を `docs/operations.md` §8-A に追加 (AGH 上流 DNS の Cloudflare 1.1.1.1 追加対応含む) |
 | 2026-05-11 | バックアップ運用の重大バグを 2 件修正: ① `mysqldump` → `mariadb-dump` (MariaDB 11.x で `mysqldump` 廃止対応)、② rsync の `--exclude='shares/backups/'` が anchor 不足で機能せず、バックアップが自身を再帰コピーして HDD を 100% まで埋め尽くす事故が発生。`--exclude='/backups/'` に修正、`docs/09-backup.md` のトラブルシュート節と本 README 双方に再発防止メモを追記 |
+| 2026-06-13 | Immich 導入。Docker Compose で immich-server / immich-machine-learning / immich_redis / immich_postgres を追加。写真データを HDD (`<HDD_ROOT>/appdata/immich/`)、DB を SSD (`/srv/appdata/immich-db/`) に配置。NPM で `immich.home.lan` → port 2283 に転送 (LAN 内のみ)。手順は `docs/12-immich.md` |
