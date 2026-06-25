@@ -10,17 +10,12 @@
 
 ## 今やる
 
-### tmux のコピーモードを直す（キーボードで選択コピー）
-- 優先度: 高
-- 背景: tmux 上の文字をうまくコピーできない。今は Shift＋マウスドラッグ頼み。キーボードだけで選択→コピーしたい（コピーモードが今うまく動かない）。スマホ作業の土台にもなる小さな改善。
-- 次の一歩: 現状の ~/.tmux.conf を確認 → `setw -g mode-keys vi` ＋ vi 風バインド(`v`で選択開始 / `y`でコピー) ＋ クリップボード連携(`set -g set-clipboard on` や OSC52) を設定して動作確認。すぐ着手できる小ネタ。
-
 ## 近いうち
 
 ### Ghostty を導入して“ターミナルオタク”環境にする
 - 優先度: 中
 - 背景: 今は Warp。Ghostty に一部お試し移行したい。ついでに neovim やファイラーを仕込んで、テンションの上がる面白い見た目にしたい。
-- 次の一歩: Ghostty 導入＋最小 config(フォント/テーマ/透過/余白)から開始 → 気に入ったら nvim(LazyVim 等)＋ファイラー(yazi)＋プロンプト(starship)を段階的に。まず「Ghostty 単体の見た目」を小さなゴールに。
+- 次の一歩: 【進行中】Ghostty 導入済み・OSC52 動作確認済み・サーバに xterm-ghostty terminfo 導入済み（SSH越しコピーが通る土台は完成）。残り: 見た目設定(~/.config/ghostty/config: フォント/テーマ/透過/余白) → 気に入ったら nvim(LazyVim)＋ファイラー(yazi)＋プロンプト(starship)を段階的に。
 
 ### スマホで仕事できる体制を作る
 - 優先度: 中
@@ -45,6 +40,11 @@
 - 次の一歩: 健康な外付け（購入後にまずSMART確認）を入手 → 既定手順（mkfs lazy init → OMVマウント → homenas-backup.sh の DEST_ROOT 差し替え → ダッシュボードの BACKUPS_PATH）で移行
 
 ## 完了
+
+### tmux のコピーモードを直す（キーボードで選択コピー）
+- 優先度: 高
+- 背景: tmux 上の文字をうまくコピーできない。Shift＋ドラッグ頼みで、キーボードでの選択コピーが効かなかった。スマホ作業の土台にもなる。
+- 次の一歩: 完了（2026-06-25）。~/.tmux.conf に mode-keys vi / mouse on / set-clipboard on / terminal-features clipboard / v・y・C-v バインドを設定。SSH越しのMacクリップボードは Warp が OSC52 非対応でNGだったため Ghostty に変更して解決（サーバに xterm-ghostty terminfo も導入）。
 
 ### サーバのSMART監視をSlack通知化
 - 優先度: 中
