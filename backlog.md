@@ -19,6 +19,11 @@
 
 ## いつか
 
+### Cloudflare Tunnel で自宅サーバを公開（セキュリティ最優先）
+- 優先度: 中
+- 背景: 自宅サーバの一部サービスを、ポート開放せずに外部公開したい（現状は WireGuard VPN 経由のみ）。ただし**セキュリティはガッチガチ**が絶対条件。
+- 次の一歩: ①Cloudflare に独自ドメインを用意 ②`cloudflared` で Tunnel を張る（ポート開放不要・アウトバウンド接続のみ）③**公開対象を絞る**（全公開しない。特定サブドメインのみ→NPM/該当コンテナへ）④**Cloudflare Access(Zero Trust) で認証必須**（メールOTP / Google等SSO・許可リスト）⑤WAF・レート制限・Bot対策。管理系は引き続き WireGuard 限定。まず「1サービスを Access 付きで公開」して検証→問題なければ拡大。
+
 ### ターミナルを“オタク環境”にする（nvim / yazi / starship 等）
 - 優先度: 低
 - 背景: ターミナルを“テンションの上がる見た目”にしたい。Ghostty・WezTerm を試したが日本語IME(変換)が弱く断念し、iTerm2 に定着。emulator は iTerm2 のままで、中身(nvim/yazi/starship/配色テーマ)で作り込む方針（中身はターミナル非依存）。
