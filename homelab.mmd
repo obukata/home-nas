@@ -1,0 +1,56 @@
+flowchart TB
+    subgraph WAN["インターネット"]
+        remote["外出先のデバイス（スマホ/PC）"]
+        duckdns["DuckDNS（ダイナミックDNS）"]
+    end
+    subgraph LAN["自宅 LAN"]
+        router["ルータ 光BBユニット E-WMTA2.3（DNS機能なし）"]
+        clients["LANクライアント Mac/iPad/スマホ"]
+    end
+    subgraph HOST["Mac mini Late2014 ／ OpenMediaVault8 ／ Debian13（192.168.3.19）"]
+        omv["OMV 管理画面 :8181"]
+        duckcron["DuckDNS更新（cron 5分毎）"]
+        backup["homenas-backup.sh（cron 毎日3:00・rsyncスナップショット）"]
+        smartd["smartd（SMART監視→Slack通知）"]
+        subgraph DOCKER["Docker（network: proxy-net）"]
+            npm["Nginx Proxy Manager（:80 / :443 / 管理:81・リバースプロキシ・自己署名証明書）"]
+            agh["AdGuard Home（DNS:53 / 管理:8082・home.lan解決・広告ブロック）"]
+            subgraph NCG["Nextcloud スタック"]
+                nc["nextcloud（nextcloud.home.lan）"]
+                ncdb["nextcloud-db（MariaDB）"]
+                ncredis["nextcloud-redis"]
+            end
+            subgraph IMGS["Immich スタック"]
+                immich["immich_server（immich.home.lan :2283）"]
+                ipg["immich_postgres"]
+                iml["immich_machine_learning"]
+                iredis["immich_redis"]
+            end
+            wg["WireGuard（:51820/udp・VPN）"]
+            dash["newdash 自作ダッシュボード（dashboard.home.lan・3010→3000）"]
+        end
+        subgraph STORAGE["内蔵ストレージ"]
+            ssd["SSD 121GB（/dev/sdb）OS・Docker・DB・設定"]
+            hdd["HDD 1TB（/dev/sda）Nextcloudデータ・バックアップ"]
+        end
+    end
+    clients -->|"DNSクエリ home.lan"| agh
+    clients -->|"https home.lan"| npm
+    clients --- router
+    remote -->|"WireGuard VPN"| wg
+    duckcron -.-> duckdns
+    duckdns -.->|"グローバルIP追従"| router
+    npm --> nc
+    npm --> immich
+    npm --> dash
+    npm -.-> agh
+    nc --- ncdb
+    nc --- ncredis
+    immich --- ipg
+    immich --- iml
+    immich --- iredis
+    nc -->|"ユーザーデータ"| hdd
+    immich -->|"写真・動画"| hdd
+    backup -->|"スナップショット"| hdd
+    smartd -.-> ssd
+    smartd -.-> hdd
