@@ -10,12 +10,12 @@
 
 ## 今やる
 
-### Cloudflare Tunnel で自宅サーバを公開（セキュリティ最優先）
-- 優先度: 中
-- 背景: 自宅サーバの一部サービスを、ポート開放せずに外部公開したい（現状は WireGuard VPN 経由のみ）。ただし**セキュリティはガッチガチ**が絶対条件。
-- 次の一歩: ①Cloudflare に独自ドメインを用意 ②`cloudflared` で Tunnel を張る（ポート開放不要・アウトバウンド接続のみ）③**公開対象を絞る**（特定サブドメインのみ→NPM/該当コンテナへ）④**Cloudflare Access(Zero Trust) で認証必須**（メールOTP / SSO・許可リスト）⑤WAF・レート制限・Bot対策。管理系は引き続き WireGuard 限定。まず「1サービスを Access 付きで公開」して検証→拡大。
-
 ## 近いうち
+
+### Tailscale を導入して VPN を快適化（非公開アクセスの土台）
+- 優先度: 中
+- 背景: 外出先から Immich/Nextcloud のアプリや dashboard に繋ぎたいが、Cloudflare Access はネイティブアプリを壊す＆管理系は公開したくない → VPN前提の非公開運用が安全。現状の WireGuard はフルトンネルで「帰宅後に通常ネットが切れる」問題あり。Tailscale はスプリットトンネル既定・ポート開放/DDNS不要・個人無料で、これを解決＆ラク。
+- 次の一歩: サーバ(OMV/Debian)に Tailscale 導入 → スマホ/PC に導入 →（必要なら subnet router で自宅LAN全体に到達）→ Immich/Nextcloud/dashboard を Tailscale経由で。既存 WireGuard は並行運用 → 安定したら撤去検討。
 
 ### バイブコーディングをマルチエージェント開発に進化させる
 - 優先度: 中
@@ -50,6 +50,11 @@
 - 次の一歩: 健康な外付け（購入後にまずSMART確認）を入手 → 既定手順（mkfs lazy init → OMVマウント → homenas-backup.sh の DEST_ROOT 差し替え → ダッシュボードの BACKUPS_PATH）で移行
 
 ## 完了
+
+### Cloudflare Tunnel で自宅サーバを公開（セキュリティ最優先）
+- 優先度: 中
+- 背景: ポート開放せず外部公開＋ガッチガチ認証をやりたかった。
+- 次の一歩: 完了（2026-06-26）。独自ドメイン **obukata.uk** を Cloudflare で取得、Zero Trust チーム `obukata`、トンネル `homelab` を作成、cloudflared を Docker(proxy-net)で起動、**dash.obukata.uk → newdash** を公開し **Cloudflare Access(Allow: squib02@gmail.com のみ)** で施錠まで検証OK。ただし方針転換：Immich/Nextcloud のアプリは Access で壊れる＆管理系は非公開が安全なので、当面は **VPN(Tailscale)前提の非公開運用**に。Cloudflare/ドメインは将来の公開サービス用に温存（cloudflared コネクタは稼働したまま＝いつでも再利用可）。
 
 ### スマホで仕事できる体制を作る
 - 優先度: 中
